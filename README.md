@@ -6,4 +6,3 @@ higiene e montar as cestas básicas para as famílias.
 - `frontend/` — o site (interface de uso).
 - `db/` — os arquivos SQL do banco de dados (PostgreSQL / Supabase).
 
-O site é publicado automaticamente pelo GitHub Pages a partir da pasta `frontend`.
