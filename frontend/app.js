@@ -39,7 +39,7 @@ function dataHoje() {
 }
 
 function seloCesta(nome) {
-  const m = { P: "bg-accent-orange", M: "bg-accent-green", G: "bg-accent-blue" };
+  const m = { P: "bg-accent-green", M: "bg-accent-blue", G: "bg-error" };
   return `<span class="inline-flex items-center justify-center w-7 h-7 rounded-full text-white text-sm font-bold ${m[nome] || "bg-primary"}">${esc(nome)}</span>`;
 }
 
@@ -87,6 +87,12 @@ async function pageInicio() {
   const baixo = variacoes.filter(v => v.estoque < LIMITE_ESTOQUE_BAIXO);
 
   app.innerHTML = pageHeader("Início", dataHoje()) + `
+    <div class="mb-6">
+      <button id="btn-lista" class="bg-accent-orange text-white font-semibold px-6 h-14 rounded-md shadow hover:opacity-90 flex items-center gap-2">
+        <span class="material-symbols-outlined">picture_as_pdf</span> Gerar lista de compras
+      </button>
+      <p class="text-on-surface-variant text-sm mt-2">PDF com o que falta comprar pras cestas do mês.</p>
+    </div>
     <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
       ${card(`<div class="p-5">
         <div class="flex items-center gap-2 text-on-surface-variant"><span class="material-symbols-outlined text-primary">diversity_3</span> Famílias ativas</div>
@@ -107,8 +113,8 @@ async function pageInicio() {
     <div class="grid gap-5 sm:grid-cols-2 mt-6">
       <a href="#recebimento" class="block">${card(`<div class="p-5 flex items-center gap-4 hover:bg-surface-variant/40 transition">
         <span class="material-symbols-outlined text-4xl text-accent-orange">input</span>
-        <div><div class="font-display font-semibold text-lg text-primary">Recebimento</div>
-        <div class="text-on-surface-variant text-sm">Contabilizar doações que chegaram</div></div>
+        <div><div class="font-display font-semibold text-lg text-primary">Contagem</div>
+        <div class="text-on-surface-variant text-sm">Contar as doações que chegaram</div></div>
         <span class="material-symbols-outlined ml-auto text-on-surface-variant">arrow_forward</span></div>`)}</a>
       <a href="#montagem" class="block">${card(`<div class="p-5 flex items-center gap-4 hover:bg-surface-variant/40 transition">
         <span class="material-symbols-outlined text-4xl text-accent-green">shopping_basket</span>
@@ -124,16 +130,17 @@ async function pageInicio() {
           ${esc(v.item)} <span class="opacity-70">(${esc(embalagem(v))})</span> · ${fmtNum(v.estoque)}</span>`).join("")}
       </div></div>`, "mt-6") : ""}
   `;
+  $("#btn-lista").onclick = gerarListaCompras;
 }
 
 async function pageRecebimento() {
   const variacoes = await getVariacoes();
   const porCat = agrupar(variacoes, v => v.categoria);
 
-  app.innerHTML = pageHeader("Recebimento de doações", "Digite o que chegou. Entra no estoque na hora.") + `
+  app.innerHTML = pageHeader("Contagem de alimentos", "Digite o que chegou. Entra no estoque na hora.") + `
     <div class="flex flex-wrap items-end gap-4 mb-5">
       <label class="block">
-        <span class="text-sm font-medium text-on-surface-variant">Dia do recebimento</span>
+        <span class="text-sm font-medium text-on-surface-variant">Dia da contagem</span>
         <input id="rec-data" type="date" value="${hojeISO()}" class="mt-1 block rounded-md border-outline h-12 px-3">
       </label>
       <a href="#itens" class="inline-flex items-center gap-1 text-secondary font-medium h-12">
@@ -142,7 +149,7 @@ async function pageRecebimento() {
     <div id="rec-grupos" class="space-y-5"></div>
     <div class="sticky bottom-0 bg-surface-ground pt-4 mt-6">
       <button id="rec-salvar" class="w-full sm:w-auto bg-accent-green text-white font-semibold px-8 h-14 rounded-md shadow hover:opacity-90 flex items-center justify-center gap-2">
-        <span class="material-symbols-outlined">save</span> Salvar recebimento</button>
+        <span class="material-symbols-outlined">save</span> Salvar contagem</button>
     </div>`;
 
   $("#rec-grupos").innerHTML = Object.entries(porCat).map(([cat, itens]) => card(`
@@ -168,7 +175,7 @@ async function pageRecebimento() {
     if (!linhas.length) return showToast("Digite ao menos uma quantidade.", "info");
     const { error } = await db.from("entradas").insert(linhas);
     if (error) return showToast("Erro ao salvar: " + error.message, "error");
-    showToast(`Recebimento salvo! ${linhas.length} item(ns) no estoque.`);
+    showToast(`Contagem salva! ${linhas.length} item(ns) no estoque.`);
     pageRecebimento();
   };
 }
@@ -184,9 +191,9 @@ async function pageMontagem() {
   const montMap = {};
   (mont.data || []).forEach(m => { montMap[m.tipo_cesta_id] = (montMap[m.tipo_cesta_id] || 0) + m.quantidade; });
 
-  const coresCard = { P: "accent-orange", M: "accent-green", G: "accent-blue" };
+  const coresCard = { P: "accent-green", M: "accent-blue", G: "error" };
 
-  app.innerHTML = pageHeader("Montagem de cestas", "Marque as cestas montadas. Os alimentos saem do estoque automaticamente.") + `
+  app.innerHTML = pageHeader("Montagem de cestas", "Marque as cestas montadas no dia.") + `
     <div class="mb-5">
       <label class="block w-fit">
         <span class="text-sm font-medium text-on-surface-variant">Dia da montagem</span>
@@ -195,7 +202,7 @@ async function pageMontagem() {
     </div>
     <div class="flex items-center gap-2 bg-warning-container text-on-warning-container px-4 py-3 rounded-md mb-5 text-sm">
       <span class="material-symbols-outlined">info</span>
-      Ao confirmar, os ingredientes de cada cesta são descontados do estoque. A composição é definida na tela de Itens/cesta.
+      Ao confirmar, os ingredientes de cada cesta são descontados do estoque.
     </div>
     <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
       ${tipos.map(t => {
@@ -241,7 +248,7 @@ async function pageMontagem() {
 
 async function pageEstoque() {
   const variacoes = await getVariacoes();
-  app.innerHTML = pageHeader("Estoque", "Sobe no recebimento e desce na montagem, automaticamente.") + `
+  app.innerHTML = pageHeader("Estoque") + `
     <div class="relative mb-5 max-w-md">
       <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
       <input id="est-busca" type="text" placeholder="Buscar item…" class="w-full h-12 pl-11 pr-4 rounded-md border-outline">
@@ -421,9 +428,66 @@ function agrupar(arr, keyFn) {
   return arr.reduce((acc, x) => { const k = keyFn(x); (acc[k] = acc[k] || []).push(x); return acc; }, {});
 }
 
+async function gerarListaCompras() {
+  if (!window.jspdf) return showToast("A biblioteca de PDF não carregou. Recarregue a página.", "error");
+  const [esperadas, comp] = await Promise.all([
+    db.from("v_cestas_esperadas").select("*"),
+    db.from("cesta_itens").select("tipo_cesta_id, quantidade, variacoes(id, tamanho, unidade, quantidade_estoque, itens(nome, categorias(nome)))"),
+  ]);
+  if (comp.error) return showToast("Erro: " + comp.error.message, "error");
+  const linhas = comp.data || [];
+  if (!linhas.length) return showToast("Primeiro cadastre o que vai em cada cesta (tela Itens).", "info");
+
+  const espMap = Object.fromEntries((esperadas.data || []).map(e => [e.tipo_cesta_id, Number(e.esperadas)]));
+
+  const need = {};
+  for (const row of linhas) {
+    const v = row.variacoes;
+    if (!v) continue;
+    if (!need[v.id]) need[v.id] = {
+      item: v.itens?.nome || "?", tamanho: v.tamanho, unidade: v.unidade,
+      categoria: v.itens?.categorias?.nome || "Outros", precisa: 0, estoque: Number(v.quantidade_estoque),
+    };
+    need[v.id].precisa += (espMap[row.tipo_cesta_id] || 0) * Number(row.quantidade);
+  }
+
+  const faltam = Object.values(need)
+    .map(n => ({ ...n, falta: Math.max(0, Math.ceil(n.precisa - n.estoque)) }))
+    .filter(n => n.falta > 0)
+    .sort((a, b) => a.categoria.localeCompare(b.categoria) || a.item.localeCompare(b.item));
+
+  if (!faltam.length) return showToast("Tudo em estoque! Nada a comprar.", "success");
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const mes = new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  let y = 20;
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.setTextColor(19, 32, 74);
+  doc.text("Lista de Compras", 14, y); y += 7;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(74, 85, 104);
+  doc.text(`Pastoral da Partilha - ${mes}`, 14, y); y += 10;
+
+  let cat = "";
+  for (const n of faltam) {
+    if (y > 275) { doc.addPage(); y = 20; }
+    if (n.categoria !== cat) {
+      cat = n.categoria; y += 2;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(19, 32, 74);
+      doc.text(cat, 14, y); y += 7;
+    }
+    doc.setFont("helvetica", "normal"); doc.setFontSize(12); doc.setTextColor(26, 32, 44);
+    doc.text(`( )   ${n.falta}x   ${n.item} - ${fmtNum(n.tamanho)} ${n.unidade}`, 18, y);
+    y += 8;
+  }
+
+  doc.save(`lista-de-compras-${hojeISO()}.pdf`);
+  showToast("Lista de compras gerada!");
+}
+
 const NAV = [
   { id: "inicio",      label: "Início",              icon: "home",            color: "" },
-  { id: "recebimento", label: "Recebimento",         icon: "input",           color: "text-accent-orange" },
+  { id: "recebimento", label: "Contagem",            icon: "input",           color: "text-accent-orange" },
   { id: "montagem",    label: "Montagem de cestas",  icon: "shopping_basket", color: "text-accent-green" },
   { id: "estoque",     label: "Estoque",             icon: "inventory_2",     color: "text-accent-blue" },
   { id: "familias",    label: "Famílias",            icon: "diversity_3",     color: "" },
