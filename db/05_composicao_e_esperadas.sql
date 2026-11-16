@@ -3,7 +3,8 @@
 
 alter table tipos_cesta add column if not exists esperadas integer not null default 0;
 
-create or replace view v_cestas_esperadas as
+drop view if exists v_cestas_esperadas;
+create view v_cestas_esperadas as
 select id as tipo_cesta_id, nome as cesta, esperadas from tipos_cesta order by nome;
 
 update tipos_cesta set esperadas = 34 where nome = 'P';
