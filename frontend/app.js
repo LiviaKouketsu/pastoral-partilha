@@ -77,8 +77,7 @@ const getCategorias = async () => (await db.from("categorias").select("*").order
 const getTiposCesta = async () => (await db.from("tipos_cesta").select("*").order("nome")).data || [];
 
 async function pageInicio() {
-  const [{ count: nFam }, esperadas, variacoes] = await Promise.all([
-    db.from("familias").select("*", { count: "exact", head: true }).eq("ativo", true),
+  const [esperadas, variacoes] = await Promise.all([
     db.from("v_cestas_esperadas").select("*"),
     getVariacoes(),
   ]);
@@ -93,13 +92,9 @@ async function pageInicio() {
       </button>
       <p class="text-on-surface-variant text-sm mt-2">PDF com o que falta comprar pras cestas do mês.</p>
     </div>
-    <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    <div class="grid gap-5 sm:grid-cols-2">
       ${card(`<div class="p-5">
-        <div class="flex items-center gap-2 text-on-surface-variant"><span class="material-symbols-outlined text-primary">diversity_3</span> Famílias ativas</div>
-        <div class="font-display font-bold text-4xl text-primary mt-2">${nFam || 0}</div>
-      </div>`)}
-      ${card(`<div class="p-5">
-        <div class="flex items-center gap-2 text-on-surface-variant"><span class="material-symbols-outlined text-accent-green">shopping_basket</span> Cestas esperadas</div>
+        <div class="flex items-center gap-2 text-on-surface-variant"><span class="material-symbols-outlined text-accent-green">shopping_basket</span> Cestas esperadas no mês</div>
         <div class="font-display font-bold text-4xl text-primary mt-2">${totalCestas}</div>
         <div class="flex gap-2 mt-3">${esp.map(e => `<span class="flex items-center gap-1">${seloCesta(e.cesta)}<b>${e.esperadas}</b></span>`).join("")}</div>
       </div>`)}
@@ -204,6 +199,18 @@ async function pageMontagem() {
       <span class="material-symbols-outlined">info</span>
       Ao confirmar, os ingredientes de cada cesta são descontados do estoque.
     </div>
+    <div class="bg-surface border border-outline-light rounded-lg shadow-sm p-5 mb-5">
+      <h3 class="font-display font-semibold text-lg text-primary">Cestas esperadas no mês</h3>
+      <p class="text-on-surface-variant text-sm mb-3">Quantas cestas de cada tipo vamos montar neste mês.</p>
+      <div class="flex flex-wrap items-end gap-4">
+        ${tipos.map(t => `<label class="block">
+          <span class="text-sm font-medium flex items-center gap-1">${seloCesta(t.nome)} Cesta ${esc(t.nome)}</span>
+          <input type="number" min="0" step="1" value="${espMap[t.id] || 0}" data-esp="${t.id}"
+            class="esp-input mt-1 w-24 h-12 text-center rounded-md border-outline">
+        </label>`).join("")}
+        <button id="esp-salvar" class="bg-secondary text-white font-semibold px-5 h-12 rounded-md hover:opacity-90">Salvar</button>
+      </div>
+    </div>
     <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
       ${tipos.map(t => {
         const esp = espMap[t.id] || 0, feito = montMap[t.id] || 0;
@@ -233,6 +240,15 @@ async function pageMontagem() {
     </div>`;
 
   $("#mt-data").onchange = (e) => { location.hash = `#montagem?d=${e.target.value}`; };
+
+  $("#esp-salvar").onclick = async () => {
+    for (const i of document.querySelectorAll(".esp-input")) {
+      const { error } = await db.from("tipos_cesta").update({ esperadas: Number(i.value) }).eq("id", Number(i.dataset.esp));
+      if (error) return showToast("Erro: " + error.message, "error");
+    }
+    showToast("Cestas esperadas salvas!");
+    pageMontagem();
+  };
 
   document.querySelectorAll(".mt-add").forEach(btn => btn.onclick = async () => {
     const tipo = Number(btn.dataset.add);
@@ -490,7 +506,6 @@ const NAV = [
   { id: "recebimento", label: "Contagem",            icon: "input",           color: "text-accent-orange" },
   { id: "montagem",    label: "Montagem de cestas",  icon: "shopping_basket", color: "text-accent-green" },
   { id: "estoque",     label: "Estoque",             icon: "inventory_2",     color: "text-accent-blue" },
-  { id: "familias",    label: "Famílias",            icon: "diversity_3",     color: "" },
   { id: "itens",       label: "Itens",               icon: "tune",            color: "" },
 ];
 const ROTAS = {
